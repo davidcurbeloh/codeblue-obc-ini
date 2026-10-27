@@ -199,7 +199,7 @@ git clone https://github.com/davidcurbeloh/codeblue-obc-ini.git
 cd codeblue-obc-ini
 ```
 
-**Note:** While the repository is private, GitHub authentication and repository access permissions are required.
+**Note:** No GitHub authentication is required to clone or download the repository. However, access to some of the original oceanographic datasets may require credentials from their respective data providers, as described below.
 
 ### 3.2. Create a Python environment
 
@@ -470,30 +470,10 @@ The tools aim to facilitate reproducible access to physical and biogeochemical o
 
 **Initial development:** David Curbelo-Hernández  
 **Institution:** Ifremer — DYNECO–PELAGOS  
-**Project:** CodeBlue (Horizon Europe)
+**Project:** CodeBlue (Sustainable Blue Economy Partnership, SBEP)
 
----
 
-## 10. Development status
-
-The initial download workflows have been tested on the Ifremer DATARMOR computing infrastructure.
-
-Current implementation:
-
-| Component | Status |
-|---|---|
-| Copernicus Marine BGC downloader | Implemented and tested |
-| ORAS5 downloader | Implemented and tested |
-| WOA23 monthly climatologies | Implemented and tested |
-| WOA23 annual climatology | Implemented and tested |
-| Shared geographical selection | Implemented and tested |
-| Visualization workflows | In development |
-
-Further development may include additional input products, enhanced validation and visualization tools.
-
----
-
-## 11. License
+## 10. License
 
 A software license has not yet been assigned to this repository.
 
