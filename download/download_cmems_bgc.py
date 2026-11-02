@@ -6,13 +6,13 @@
 CodeBlue - Copernicus Marine BGC downloader
 ===========================================
 
-Download daily biogeochemical fields for a user-defined region.
+Download monthly biogeochemical fields for a user-defined region.
 
 Dataset:
     GLOBAL_MULTIYEAR_BGC_001_029
-    cmems_mod_glo_bgc_my_0.25deg_P1D-m
+    cmems_mod_glo_bgc_my_0.25deg_P1M-m
     https://data.marine.copernicus.eu/product/GLOBAL_MULTIYEAR_BGC_001_029/description
-    
+
 Variables:
     no3 : Nitrate
     po4 : Phosphate
@@ -21,7 +21,7 @@ Variables:
 
 Features:
     - User-defined geographic boundaries
-    - Automatic 1-degree padding
+    - Automatic 1-degree padding (configurable in region.py)
     - User-defined start and end months
     - One NetCDF file per month
     - Annual output directories
@@ -29,12 +29,30 @@ Features:
     - Download retries
     - No HPC-specific configuration
 
+Output structure:
+    data/CMEMS/
+        1993/
+            BGC_monthly_199301.nc
+            BGC_monthly_199302.nc
+            ...
+        1994/
+            BGC_monthly_199401.nc
+            ...
+
 Example (MANGAE-Ifremer):
     python download/download_cmems_bgc.py \
         --west -18 --east 9.5 \
         --south 41 --north 55 \
         --start 1993-01 --end 1993-12 \
         --output ./data/CMEMS
+
+Dry-run example:
+    python download/download_cmems_bgc.py \
+        --west -18 --east 9.5 \
+        --south 41 --north 55 \
+        --start 1993-01 --end 1993-12 \
+        --output ./data/CMEMS \
+        --dry-run
 """
 
 import argparse
@@ -54,8 +72,10 @@ from region import add_region_arguments, get_region
 # 1. DATASET CONFIGURATION
 # ============================================================
 
-DATASET_ID = "cmems_mod_glo_bgc_my_0.25deg_P1D-m"
+# Copernicus Marine monthly BGC product
+DATASET_ID = "cmems_mod_glo_bgc_my_0.25deg_P1M-m"
 
+# Biogeochemical variables
 VARIABLES = [
     "no3",
     "po4",
@@ -63,6 +83,7 @@ VARIABLES = [
     "o2",
 ]
 
+# Download retries
 MAX_RETRIES = 3
 
 RETRY_DELAY = 30
@@ -128,7 +149,8 @@ def valid_file(path, year, month, bounds):
     Checks:
         - File exists and is not empty
         - All requested variables exist
-        - Number of daily records matches the month
+        - Exactly one monthly time record
+        - Time record corresponds to the requested month
         - Geographic coordinates cover the requested area
     """
 
@@ -144,7 +166,10 @@ def valid_file(path, year, month, bounds):
 
         with xr.open_dataset(path) as ds:
 
+            # ------------------------------------------------
             # Check variables
+            # ------------------------------------------------
+
             for variable in VARIABLES:
 
                 if variable not in ds.data_vars:
@@ -153,12 +178,11 @@ def valid_file(path, year, month, bounds):
                 if ds[variable].size == 0:
                     return False
 
-            # Check daily time records
-            expected_days = calendar.monthrange(
-                year, month
-            )[1]
+            # ------------------------------------------------
+            # Check monthly time record
+            # ------------------------------------------------
 
-            if ds.sizes.get("time", 0) != expected_days:
+            if ds.sizes.get("time", 0) != 1:
                 return False
 
             dates = ds["time"].dt
@@ -169,7 +193,10 @@ def valid_file(path, year, month, bounds):
             if not bool((dates.month == month).all().item()):
                 return False
 
+            # ------------------------------------------------
             # Check geographic coordinates
+            # ------------------------------------------------
+
             if "latitude" not in ds.coords:
                 return False
 
@@ -220,7 +247,7 @@ def download_month(
     bounds,
     output_dir,
 ):
-    """Download one month of daily BGC data."""
+    """Download one monthly BGC record."""
 
     west, east, south, north = bounds
 
@@ -231,13 +258,17 @@ def download_month(
         exist_ok=True,
     )
 
-    filename = f"BGC_{year}{month:02d}.nc"
+    filename = f"BGC_monthly_{year}{month:02d}.nc"
 
     target = year_dir / filename
 
     logger.info("=" * 60)
     logger.info("Processing %04d-%02d", year, month)
     logger.info("Output: %s", target)
+
+    # --------------------------------------------------------
+    # Skip existing valid files
+    # --------------------------------------------------------
 
     if valid_file(
         target,
@@ -249,6 +280,10 @@ def download_month(
         logger.info("SKIP: valid file already exists.")
         return
 
+    # --------------------------------------------------------
+    # Define monthly time interval
+    # --------------------------------------------------------
+
     last_day = calendar.monthrange(
         year, month
     )[1]
@@ -259,15 +294,23 @@ def download_month(
         f"{year}-{month:02d}-{last_day:02d}T23:59:59"
     )
 
+    # --------------------------------------------------------
+    # Temporary download file
+    # --------------------------------------------------------
+
     # Download to a temporary file first.
     # An incomplete download must never be accepted
     # as a finished monthly NetCDF.
 
     temporary_name = (
-        f".BGC_{year}{month:02d}.incomplete.nc"
+        f".BGC_monthly_{year}{month:02d}.incomplete.nc"
     )
 
     temporary_path = year_dir / temporary_name
+
+    # --------------------------------------------------------
+    # Download with retries
+    # --------------------------------------------------------
 
     for attempt in range(1, MAX_RETRIES + 1):
 
@@ -296,6 +339,10 @@ def download_month(
                 overwrite=True,
             )
 
+            # ------------------------------------------------
+            # Validate downloaded NetCDF
+            # ------------------------------------------------
+
             if not valid_file(
                 temporary_path,
                 year,
@@ -307,7 +354,10 @@ def download_month(
                     "Downloaded NetCDF failed validation."
                 )
 
-            # Atomic replacement within the same directory.
+            # ------------------------------------------------
+            # Replace target atomically
+            # ------------------------------------------------
+
             temporary_path.replace(target)
 
             size_mb = (
@@ -348,13 +398,20 @@ def main():
 
     parser = argparse.ArgumentParser(
         description=(
-            "Download daily Copernicus Marine BGC "
+            "Download monthly Copernicus Marine BGC "
             "data for a user-defined region."
         )
     )
 
+    # --------------------------------------------------------
     # Shared CodeBlue geographic arguments
+    # --------------------------------------------------------
+
     add_region_arguments(parser)
+
+    # --------------------------------------------------------
+    # Time arguments
+    # --------------------------------------------------------
 
     parser.add_argument(
         "--start",
@@ -370,12 +427,20 @@ def main():
         help="Last month: YYYY-MM",
     )
 
+    # --------------------------------------------------------
+    # Output directory
+    # --------------------------------------------------------
+
     parser.add_argument(
         "--output",
         type=Path,
         default=Path("./data/CMEMS"),
         help="Output directory (default: ./data/CMEMS)",
     )
+
+    # --------------------------------------------------------
+    # Dry-run option
+    # --------------------------------------------------------
 
     parser.add_argument(
         "--dry-run",
@@ -385,10 +450,18 @@ def main():
 
     args = parser.parse_args()
 
+    # --------------------------------------------------------
+    # Validate dates
+    # --------------------------------------------------------
+
     if args.start > args.end:
         parser.error(
             "--start must be earlier than or equal to --end."
         )
+
+    # --------------------------------------------------------
+    # Geographic configuration
+    # --------------------------------------------------------
 
     region = get_region(args)
 
@@ -416,6 +489,10 @@ def main():
     logger.info("Variables: %s", VARIABLES)
     logger.info("Output: %s", args.output)
 
+    # --------------------------------------------------------
+    # Process requested months
+    # --------------------------------------------------------
+
     for year, month in iter_months(
         args.start,
         args.end,
@@ -424,7 +501,7 @@ def main():
         if args.dry_run:
 
             logger.info(
-                "DRY RUN: BGC_%04d%02d.nc",
+                "DRY RUN: BGC_monthly_%04d%02d.nc",
                 year,
                 month,
             )
