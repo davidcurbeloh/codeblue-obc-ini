@@ -3,7 +3,7 @@
 This folder contains the interactive analysis notebook:
 
 - **[CodeBlue_OBC_BGC_Visualization.ipynb](CodeBlue_OBC_BGC_Visualization.ipynb)** — configure a study domain and active model boundaries; compare monthly CMEMS BGC reanalysis against WOA23 climatologies.
-- **[MANGAE–Ifremer example (HTML)](CodeBlue_OBC_BGC_Visualization_MANGAE-Ifremer_example.html)** — static illustration of the notebook and its plotted output. The HTML export is for viewing, not for editing or recomputing results.
+- **[View MANGAE–Ifremer example (HTML, GitHub Pages)](https://davidcurbeloh.github.io/codeblue-obc-ini/visualization/CodeBlue_OBC_BGC_Visualization_MANGAE-Ifremer_example.html)** — open the static notebook export directly in your browser, with its figures and results. This is a read-only example, not an executable notebook.
 
 > The interactive notebook requires downloaded data; the HTML example can be viewed without running Python, when the example file has been uploaded.
 
@@ -69,7 +69,7 @@ No vertical extrapolation should be inferred from the displayed panels. Always c
 
 ## 5. Example, limitations and reproducibility
 
-**[Open the MANGAE–Ifremer HTML example](CodeBlue_OBC_BGC_Visualization_MANGAE-Ifremer_example.html)** to inspect a static rendering of the full workflow. Download and open the file in a browser if GitHub does not render it inline.
+**[Open the MANGAE–Ifremer HTML example in your browser](https://davidcurbeloh.github.io/codeblue-obc-ini/visualization/CodeBlue_OBC_BGC_Visualization_MANGAE-Ifremer_example.html)** to inspect the notebook's rendered outputs. GitHub's normal file view may show “View raw” for large HTML files; use the GitHub Pages URL above instead. If Pages is unavailable, [download the HTML source](https://github.com/davidcurbeloh/codeblue-obc-ini/raw/refs/heads/main/visualization/CodeBlue_OBC_BGC_Visualization_MANGAE-Ifremer_example.html) and open it locally.
 
 - Boundary statistics describe a band near the model perimeter, not values interpolated directly onto CROCO open-boundary points.
 - In curved grids, inspect whether the selected edges are genuinely open and whether halo/land cells are present.
