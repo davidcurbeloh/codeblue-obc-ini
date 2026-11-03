@@ -102,7 +102,7 @@ In the notebook, set the **model/visualization geometry independently of the dow
 
 Before 1993, combined historical displays repeat WOA23 monthly climatology in the depths where it exists, and otherwise use WOA23 annual climatology. These repeated climatologies **are not interannual historical reconstructions**; CMEMS monthly data are used from 1993 onward as available.
 
-**[MANGAE–Ifremer visualization example (HTML)](visualization/CodeBlue_OBC_BGC_Visualization_MANGAE-Ifremer_example.html)** — static export of example outputs; the HTML file must be included in `visualization/` for this link to work.
+**[View the MANGAE–Ifremer example in your browser (HTML, GitHub Pages)](https://davidcurbeloh.github.io/codeblue-obc-ini/visualization/CodeBlue_OBC_BGC_Visualization_MANGAE-Ifremer_example.html)** — static notebook export with figures and results. This link opens the rendered HTML page, not GitHub's source-file preview. The GitHub Pages deployment must be enabled for `main` / `(root)`.
 
 ## Repository layout
 
