@@ -1,482 +1,134 @@
-# CodeBlue — Ocean Data Download Tools
+# CodeBlue — oceanographic data download and visualization
 
-Python tools for downloading and preparing physical and biogeochemical oceanographic datasets used in the **CodeBlue project**.
+Tools developed within the **CodeBlue project (Ifremer, DYNECO–PELAGOS)** to download regional physical and biogeochemical data and assess their spatial, vertical and temporal variability near ocean-model boundaries.
 
-This repository provides reproducible workflows for retrieving ocean reanalysis products and climatological datasets, with a particular focus on generating physical and biogeochemical inputs for regional ocean modelling applications.
+The repository includes:
+- Download scripts for **Copernicus Marine BGC**, **World Ocean Atlas 2023 (WOA23)** and **ORAS5**.
+- An interactive Jupyter notebook comparing CMEMS and WOA23 in user-selected domains and boundary bands.
+- An exported **MANGAE–Ifremer example** (static HTML), when available.
 
-The tools were initially developed for the **MANGAE2500_V2 regional configuration**. However, they are designed to be geographically flexible and can be applied to other ocean regions.
+> **Scope:** These tools retrieve and visualize external datasets. They do **not** directly generate CROCO initial or open-boundary condition files. Additional interpolation and processing are needed.
 
----
+## Data products
 
-## 1. Available datasets
+| Product | Variables | Time resolution | Files |
+| --- | --- | --- | --- |
+| Copernicus Marine BGC | `no3`, `po4`, `si`, `o2` | **Monthly** | `data/CMEMS/YYYY/BGC_monthly_YYYYMM.nc` |
+| WOA23 | `no3`, `po4`, `si`, `o2` | 12 monthly climatologies + annual | `data/WOA/WOA_01.nc` … `WOA_12.nc`, `WOA_ANNUAL.nc` |
+| ORAS5 | Potential temperature, salinity, U/V velocities, SSH | Monthly | `data/ORAS5/YYYY/ORAS5_YYYYMM.nc` |
 
-Three oceanographic products are currently supported.
+**CMEMS product:** `cmems_mod_glo_bgc_my_0.25deg_P1M-m` (monthly means on a 0.25° grid). Its available dates depend on the provider.
 
-| Product | Source | Variables | Temporal resolution | Spatial resolution |
-|---|---|---|---|---|
-| Copernicus Marine BGC | Copernicus Marine Service | NO₃, PO₄, Si, O₂ | Daily | 0.25° |
-| ORAS5 | ECMWF / Copernicus Climate Data Store | Temperature, salinity, U, V, SSH | Monthly | Native ORAS5 grid |
-| WOA23 | NOAA World Ocean Atlas 2023 | NO₃, PO₄, Si, O₂ | Monthly and annual climatologies | 1° |
+**WOA23 coverage:** monthly nutrients extend to approximately 800 m, monthly oxygen to approximately 1500 m; annual climatologies extend to approximately 5500 m. WOA23 monthly and annual fields are separate products, and the downloader does not vertically extrapolate them.
 
-### 1.1. Copernicus Marine — Biogeochemistry
+**ORAS5:** retains the product's native horizontal grid and does not regrid its variables onto a CROCO mesh.
 
-**Dataset:** `cmems_mod_glo_bgc_my_0.25deg_P1D-m`
-
-The downloader retrieves daily biogeochemical fields from the Copernicus Marine global ocean biogeochemical reanalysis.
-
-| Variable | Description |
-|---|---|
-| `no3` | Nitrate |
-| `po4` | Phosphate |
-| `si` | Silicate |
-| `o2` | Dissolved oxygen |
-
-The downloaded fields retain their original vertical levels and temporal resolution.
-
-Data are organized into monthly NetCDF files, each containing the available daily fields for that month.
-
-**Output example:**
-
-```text
-data/CMEMS/
-├── 2020/
-│   ├── BGC_202001.nc
-│   ├── BGC_202002.nc
-│   └── ...
-└── 2021/
-    └── ...
-```
-
-### 1.2. ORAS5 — Physical ocean reanalysis
-
-**Dataset:** `reanalysis-oras5`
-
-ORAS5 is an ocean and sea-ice reanalysis produced by ECMWF and distributed through the Copernicus Climate Data Store (CDS).
-
-The downloader retrieves five physical variables:
-
-| Variable | Description |
-|---|---|
-| `votemper` | Potential temperature |
-| `vosaline` | Salinity |
-| `vozocrtx` | Zonal ocean velocity |
-| `vomecrty` | Meridional ocean velocity |
-| `sossheig` | Sea surface height |
-
-The original global fields are downloaded, cropped to the selected geographical region, and combined into monthly NetCDF files.
-
-**Important:** ORAS5 uses a native curvilinear ocean grid. The downloader preserves the geographical coordinates and native horizontal grids of the different variables. It does not interpolate the data onto a common regular grid.
-
-Temporary global files are removed after successful processing.
-
-**Output example:**
-
-```text
-data/ORAS5/
-├── 1960/
-│   ├── ORAS5_196001.nc
-│   ├── ORAS5_196002.nc
-│   └── ...
-└── 1961/
-    └── ...
-```
-
-### 1.3. World Ocean Atlas 2023 — Biogeochemical climatologies
-
-**Dataset:** NOAA World Ocean Atlas 2023 (WOA23)
-
-The downloader retrieves objectively analysed biogeochemical climatologies for:
-
-| Variable | Description |
-|---|---|
-| `no3` | Nitrate |
-| `po4` | Phosphate |
-| `si` | Silicate |
-| `o2` | Dissolved oxygen |
-
-Two types of climatological products are supported.
-
-#### Monthly climatologies
-
-WOA23 provides 12 monthly climatologies representing the mean seasonal cycle.
-
-The vertical coverage differs among variables:
-
-| Variable | Maximum depth |
-|---|---|
-| Nitrate | 800 m |
-| Phosphate | 800 m |
-| Silicate | 800 m |
-| Oxygen | 1500 m |
-
-Each monthly output contains 57 vertical levels, using the union of the original depth coordinates.
-
-Nutrient concentrations below 800 m are represented as missing values (`NaN`).
-
-**No vertical interpolation or extrapolation is performed.**
-
-#### Annual climatology
-
-The annual climatology contains all four biogeochemical variables.
-
-| Characteristic | Annual product |
-|---|---|
-| Variables | NO₃, PO₄, Si, O₂ |
-| Maximum depth | 5500 m |
-| Vertical levels | 102 |
-
-The annual climatology is stored separately from the monthly products.
-
-**Output structure:**
-
-```text
-data/WOA/
-├── WOA_01.nc
-├── WOA_02.nc
-├── WOA_03.nc
-├── ...
-├── WOA_12.nc
-└── WOA_ANNUAL.nc
-```
-
-The annual product is not generated by averaging the 12 monthly files. It is retrieved directly from NOAA.
-
----
-
-## 2. Geographical selection
-
-All downloaders support user-defined geographical boundaries.
-
-The coordinates must be specified in decimal degrees using:
-
-```text
---west
---east
---south
---north
-```
-
-To provide additional spatial coverage around the target domain, the tools automatically extend the requested boundaries by **1° in each direction**.
-
-For example:
-
-**Requested region:**
-
-```text
-West:  -10°
-East:   -8°
-South:  45°
-North:  47°
-```
-
-**Download region:**
-
-```text
-West:  -11°
-East:   -7°
-South:  44°
-North:  48°
-```
-
-The geographical boundary calculations are implemented in:
-
-```text
-download/region.py
-```
-
-This shared module ensures consistent spatial selection across the different products.
-
-The current implementation is intended for regions that do not cross the antimeridian.
-
----
-
-## 3. Installation
-
-### 3.1. Clone the repository
+## Installation
 
 ```bash
 git clone https://github.com/davidcurbeloh/codeblue-obc-ini.git
 cd codeblue-obc-ini
-```
-
-**Note:** No GitHub authentication is required to clone or download the repository. However, access to some of the original oceanographic datasets may require credentials from their respective data providers, as described below.
-
-### 3.2. Create a Python environment
-
-Python 3.10 or newer is recommended.
-
-Create and activate a virtual environment:
-
-```bash
 python3 -m venv .venv
 source .venv/bin/activate
-```
-
-Install the required dependencies:
-
-```bash
 python -m pip install -r requirements.txt
 ```
 
-Main dependencies:
+The interactive notebook additionally requires packages such as `ipywidgets`, `dask`, `shapely`, `pyproj` and `cartopy`. Install these in the notebook's Python environment if not already present:
 
-- `copernicusmarine`
-- `cdsapi`
-- `xarray`
-- `numpy`
-- `netCDF4`
+```bash
+python -m pip install ipywidgets dask shapely pyproj cartopy
+```
 
-### 3.3. Data access requirements
+Use a Python version compatible with the installed scientific libraries. The download services may require credentials: Copernicus Marine Toolbox for CMEMS and CDS API access for ORAS5; WOA23 is publicly accessible.
 
-**Copernicus Marine**
+## Geographic selection: manual coordinates or CROCO grid
 
-Access to Copernicus Marine products may require a registered account.
+All three downloaders share `download/region.py`. You can choose **one** geographic input method:
 
-Register at:
+1. `--west`, `--east`, `--south`, `--north`: the original model-domain bounds, in decimal degrees; **or**
+2. `--grid-file /path/to/croco_grd.nc`: determine the enclosing geographic rectangle from longitude/latitude coordinates of the model grid (typically `lon_rho`/`lat_rho`).
 
-https://marine.copernicus.eu/
+By default, `--padding 1` extends the download rectangle by 1° on every side. This is a *download margin*, not necessarily the width of the visualization boundary bands. The current single-box procedure does not handle domains crossing the antimeridian.
 
-Follow the authentication instructions provided by the Copernicus Marine Toolbox.
+For the MANGAE2500 example, the model rectangle is W −18°, E 9.5°, S 41°, N 55°; with a 1° margin the requested download region is W −19°, E 10.5°, S 40°, N 56°. For rotated/curvilinear meshes, the download box encloses the full grid; the notebook can use the actual grid edges for visualization.
 
-**ORAS5 / Copernicus Climate Data Store**
+## Download commands
 
-An ECMWF CDS account is required.
+Run commands from the repository root. Replace `/path/to/croco_grd.nc` with the grid of your own model. Add `--dry-run` to inspect the planned operation without downloading.
 
-Register at:
-
-https://cds.climate.copernicus.eu/
-
-Configure your CDS API credentials and accept the applicable dataset terms before downloading ORAS5.
-
-**WOA23**
-
-NOAA World Ocean Atlas files are publicly accessible and do not require authentication.
-
----
-
-## 4. Usage
-
-All download scripts are executed from the repository's root directory.
-
-### 4.1. Download Copernicus Marine BGC
-
-Example: daily biogeochemical fields for January–December 2020.
+**Monthly CMEMS BGC:**
 
 ```bash
 python download/download_cmems_bgc.py \
-    --west -18 \
-    --east 9.5 \
-    --south 41 \
-    --north 55 \
-    --start 2020-01 \
-    --end 2020-12 \
-    --output ./data/CMEMS
+  --grid-file /path/to/croco_grd.nc --padding 1 \
+  --start 1993-01 --end 1993-12 \
+  --output ./data/CMEMS
 ```
 
-Each month is stored as a separate NetCDF file.
-
-A dry run can be performed without downloading data:
+**WOA23 monthly + annual climatologies:**
 
 ```bash
-python download/download_cmems_bgc.py \
-    --west -10 --east -8 \
-    --south 45 --north 47 \
-    --start 2020-01 \
-    --end 2020-01 \
-    --output ./data/CMEMS \
-    --dry-run
+python download/download_woa23.py \
+  --grid-file /path/to/croco_grd.nc --padding 1 \
+  --output ./data/WOA
 ```
 
-### 4.2. Download ORAS5
+Omit `--month` to download all 13 climatologies, set `--month 1` … `12` to download one monthly climatology, or `--month 0` for the annual product.
 
-Example: monthly physical fields for 1960.
+**ORAS5 monthly fields:**
 
 ```bash
 python download/download_oras5.py \
-    --west -18 \
-    --east 9.5 \
-    --south 41 \
-    --north 55 \
-    --start 1960-01 \
-    --end 1960-12 \
-    --output ./data/ORAS5
+  --grid-file /path/to/croco_grd.nc --padding 1 \
+  --start 1960-01 --end 1960-12 \
+  --output ./data/ORAS5
 ```
 
-The program downloads temperature, salinity, horizontal velocities and sea surface height.
+ORAS5 retrieves large source fields before regional subsetting: allow sufficient temporary storage and first test a single month.
 
-All five variables are stored in a single monthly NetCDF file, retaining their native grid information.
-
-**Note:** ORAS5 downloads can require substantial temporary disk space because the original global fields are retrieved before geographical subsetting.
-
-For an initial test, downloading a single month and a small region is recommended.
-
-### 4.3. Download WOA23
-
-The WOA23 downloader supports three modes.
-
-**Download all monthly and annual climatologies:**
+**Manual-coordinate alternative** (valid for any of the download commands):
 
 ```bash
-python download/download_woa23.py \
-    --west -18 \
-    --east 9.5 \
-    --south 41 \
-    --north 55 \
-    --output ./data/WOA
+--west -18 --east 9.5 --south 41 --north 55 --padding 1
 ```
 
-This generates 13 NetCDF files: 12 monthly climatologies and one annual climatology.
+Do not combine `--grid-file` and manual coordinates. Downloaded files are not intended to be committed to GitHub.
 
-**Download one monthly climatology:**
+## Interactive visualization
 
-For January:
+Open **[CodeBlue_OBC_BGC_Visualization.ipynb](visualization/CodeBlue_OBC_BGC_Visualization.ipynb)** in JupyterLab. Detailed guidance is in **[visualization/README.md](visualization/README.md)**.
 
-```bash
-python download/download_woa23.py \
-    --west -18 \
-    --east 9.5 \
-    --south 41 \
-    --north 55 \
-    --month 1 \
-    --output ./data/WOA
-```
+In the notebook, set the **model/visualization geometry independently of the downloaded-data extent**: enter the *unpadded* original domain rectangle or read a CROCO NetCDF grid. Select the active boundaries (e.g. North/South/West), define the sampling-band width, and optionally exclude Mediterranean cells using the regional mask (approximate polygon; inspect it for your domain). The notebook includes maps, vertical profiles, seasonal climatologies, time series, and Hovmöller diagrams.
 
-The `--month` parameter accepts values from 1 to 12 for monthly products.
+Before 1993, combined historical displays repeat WOA23 monthly climatology in the depths where it exists, and otherwise use WOA23 annual climatology. These repeated climatologies **are not interannual historical reconstructions**; CMEMS monthly data are used from 1993 onward as available.
 
-**Download only the annual climatology:**
+**[MANGAE–Ifremer visualization example (HTML)](visualization/CodeBlue_OBC_BGC_Visualization_MANGAE-Ifremer_example.html)** — static export of example outputs; the HTML file must be included in `visualization/` for this link to work.
 
-```bash
-python download/download_woa23.py \
-    --west -18 \
-    --east 9.5 \
-    --south 41 \
-    --north 55 \
-    --month 0 \
-    --output ./data/WOA
-```
-
-For WOA23, `--month 0` refers to the annual climatology.
-
-Because WOA23 contains climatological fields rather than individual years, no `--start` or `--end` arguments are required.
-
----
-
-## 5. Output management and validation
-
-The downloaders are designed to support reproducible data processing.
-
-Key features include:
-
-- User-defined geographical boundaries.
-- Automatic 1° geographical padding.
-- NetCDF output.
-- Configurable output directories.
-- Preservation of original vertical coordinates.
-- Basic data integrity checks.
-- Automatic retry mechanisms.
-- Detection of previously downloaded valid files.
-- Removal of temporary source files after successful processing.
-- Dry-run mode for checking parameters before downloading.
-
-Existing files are reused when they pass the downloader's validation checks.
-
-**Important:** Reuse checks are specific to each downloader. They verify selected file characteristics but do not constitute full scientific quality control.
-
-Downloaded NetCDF files should not be committed to this repository. They are excluded through `.gitignore`.
-
----
-
-## 6. Intended applications
-
-The downloaded datasets can support:
-
-- Initial and boundary conditions for regional ocean circulation models.
-- Physical and biogeochemical model configuration.
-- Regional ocean hindcast simulations.
-- Ocean nutrient and oxygen analyses.
-- Comparison between reanalysis products and climatological fields.
-- Model evaluation and scientific visualization.
-
-The original development focused on CROCO and its coupled biogeochemical components, including BLOOM, within the CodeBlue project.
-
-**The downloaders do not directly generate CROCO boundary-condition files.** Additional processing, including horizontal and vertical interpolation onto the target model grid, may be required.
-
----
-
-## 7. Repository structure
+## Repository layout
 
 ```text
 codeblue-obc-ini/
-│
 ├── README.md
 ├── requirements.txt
-├── .gitignore
-│
 ├── download/
 │   ├── region.py
 │   ├── download_cmems_bgc.py
-│   ├── download_oras5.py
-│   └── download_woa23.py
-│
+│   ├── download_woa23.py
+│   └── download_oras5.py
 └── visualization/
-    └── README.md
+    ├── README.md
+    ├── CodeBlue_OBC_BGC_Visualization.ipynb
+    └── CodeBlue_OBC_BGC_Visualization_MANGAE-Ifremer_example.html
 ```
 
-The `download/` directory contains the scripts used to retrieve and subset oceanographic datasets.
+## Data sources and credits
 
-The `visualization/` directory is reserved for scripts and notebooks for exploring, comparing and evaluating the downloaded products.
+- [Copernicus Marine Service](https://marine.copernicus.eu/) — global BGC reanalysis.
+- [NOAA World Ocean Atlas 2023](https://www.ncei.noaa.gov/products/world-ocean-atlas) — nutrient and oxygen climatologies.
+- [ECMWF Copernicus Climate Data Store / ORAS5](https://cds.climate.copernicus.eu/datasets/reanalysis-oras5) — ocean reanalysis.
 
-The tools are designed to be independent of a particular computing infrastructure. Users can execute them locally or integrate them into their own HPC workflows.
+Acknowledge the original products and their applicable citation/licensing terms in scientific work.
 
----
+**Initial development:** David Curbelo-Hernández · **Ifremer, DYNECO–PELAGOS** · **CodeBlue project**.
 
-## 8. Data sources and acknowledgements
-
-The datasets distributed by the original data providers remain subject to their respective terms of use, attribution requirements and licensing conditions.
-
-Users should acknowledge the original data providers when publishing results derived from these products.
-
-### Copernicus Marine Service
-
-Global ocean biogeochemical reanalysis.
-
-Dataset: `cmems_mod_glo_bgc_my_0.25deg_P1D-m`
-
-https://marine.copernicus.eu/
-
-### ECMWF / Copernicus Climate Change Service
-
-ORAS5 ocean reanalysis.
-
-Dataset: `reanalysis-oras5`
-
-https://cds.climate.copernicus.eu/datasets/reanalysis-oras5
-
-### NOAA National Centers for Environmental Information
-
-World Ocean Atlas 2023.
-
-https://www.ncei.noaa.gov/products/world-ocean-atlas
-
-Users should consult the associated scientific publications and dataset documentation for the appropriate citations.
-
----
-
-## 9. Development and project context
-
-This repository was developed at **Ifremer**, within the DYNECO–PELAGOS research unit, in the framework of the European **CodeBlue project**.
-
-The tools aim to facilitate reproducible access to physical and biogeochemical oceanographic datasets used in regional modelling studies.
-
-**Initial development:** David Curbelo-Hernández  
-**Institution:** Ifremer — DYNECO–PELAGOS  
-**Project:** CodeBlue (Sustainable Blue Economy Partnership, SBEP)
-
-
-## 10. License
-
-A software license has not yet been assigned to this repository.
-
-Reuse, redistribution and publication of the source code should follow the applicable institutional and project requirements.
-
-The original oceanographic datasets are governed by the terms established by their respective data providers.
+**License:** No license is currently specified in the repository. Reuse and redistribution remain subject to applicable institutional/project requirements; source-data licenses are set by the providers.
